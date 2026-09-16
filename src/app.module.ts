@@ -11,6 +11,7 @@ import { PayrollModule } from './module/payroll/payroll.module.js';
 import { AuditModule } from './module/audit/audit.module.js';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './module/auth/guards/jwt-auth.guard.js';
+import { RolesGuard } from './module/auth/guards/roles.guard.js';
 
 @Module({
   imports: [
@@ -28,6 +29,10 @@ import { JwtAuthGuard } from './module/auth/guards/jwt-auth.guard.js';
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
     },
   ],
 })
