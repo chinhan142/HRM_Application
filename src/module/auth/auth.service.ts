@@ -17,7 +17,31 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto) {
-    throw new Error('Method not implemented.');
+    const employee = await this.prisma.employee.findUnique({
+      where: {
+        email: dto.email,
+      },
+    });
+
+    if (employee) {
+      throw new ConflictException('This employee is already exist!');
+    }
+
+    const hashPassword = await bcrypt.hash(dto.password, 10);
+
+    const newEmployee = await this.prisma.employee.create({
+      data: {
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        email: dto.email,
+        password: hashPassword,
+        departmentId: dto.departmentId,
+        jobTitleId: dto.jobTitleId,
+      },
+    });
+
+    const { password, ...result } = newEmployee;
+    return result;
   }
 
   async login(user: any): Promise<{ access_token: string }> {
