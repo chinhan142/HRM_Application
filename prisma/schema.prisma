@@ -1,0 +1,144 @@
+// Prisma Schema for HRM Project (Defense Case Study 5)
+// Compliant with 3NF Relational Architecture & SRS Specification
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  MANAGER
+  HR_MANAGER
+  ADMIN
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  TERMINATED
+}
+
+enum LeaveType {
+  SICK
+  CASUAL
+  VACATION
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED_BY_MANAGER
+  APPROVED_BY_HR
+  REJECTED
+}
+
+enum PayrollStatus {
+  PENDING
+  PAID
+}
+
+model Department {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.VarChar(100)
+  budget    Decimal  @default(0) @db.Decimal(12, 2)
+  location  String   @db.VarChar(150)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  employees Employee[]
+
+  @@map("departments")
+}
+
+model JobTitle {
+  id             Int     @id @default(autoincrement())
+  title          String  @unique @db.VarChar(100)
+  salaryRangeMin Decimal @map("salary_range_min") @db.Decimal(10, 2)
+  salaryRangeMax Decimal @map("salary_range_max") @db.Decimal(10, 2)
+
+  employees Employee[]
+
+  @@map("job_titles")
+}
+
+model Employee {
+  id        Int            @id @default(autoincrement())
+  firstName String         @map("first_name") @db.VarChar(50)
+  lastName  String         @map("last_name") @db.VarChar(50)
+  email     String         @unique @db.VarChar(150)
+  password  String         @db.VarChar(255)
+  role      Role           @default(USER)
+  status    EmployeeStatus @default(ACTIVE)
+  createdAt DateTime       @default(now()) @map("created_at")
+
+  departmentId Int  @map("department_id")
+  jobTitleId   Int  @map("job_title_id")
+  managerId    Int? @map("manager_id")
+
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  jobTitle   JobTitle   @relation(fields: [jobTitleId], references: [id], onDelete: Restrict)
+
+  // Self-referencing relationship for Reporting Manager
+  manager      Employee?  @relation("EmployeeManagement", fields: [managerId], references: [id], onDelete: SetNull)
+  subordinates Employee[] @relation("EmployeeManagement")
+
+  payrolls              Payroll[]
+  leaveRequests         LeaveRequest[] @relation("EmployeeLeaveRequests")
+  managerApprovedLeaves LeaveRequest[] @relation("ManagerApprovedLeaves")
+  hrApprovedLeaves      LeaveRequest[] @relation("HrApprovedLeaves")
+
+  @@map("employees")
+}
+
+model LeaveRequest {
+  id                  Int         @id @default(autoincrement())
+  employeeId          Int         @map("employee_id")
+  startDate           DateTime    @map("start_date") @db.Date
+  endDate             DateTime    @map("end_date") @db.Date
+  type                LeaveType
+  status              LeaveStatus @default(PENDING)
+  reason              String?     @db.Text
+  approvedByManagerId Int?        @map("approved_by_manager_id")
+  approvedByHrId      Int?        @map("approved_by_hr_id")
+  createdAt           DateTime    @default(now()) @map("created_at")
+
+  employee          Employee  @relation("EmployeeLeaveRequests", fields: [employeeId], references: [id], onDelete: Cascade)
+  approvedByManager Employee? @relation("ManagerApprovedLeaves", fields: [approvedByManagerId], references: [id], onDelete: SetNull)
+  approvedByHr      Employee? @relation("HrApprovedLeaves", fields: [approvedByHrId], references: [id], onDelete: SetNull)
+
+  @@map("leave_requests")
+}
+
+model Payroll {
+  id             Int           @id @default(autoincrement())
+  employeeId     Int           @map("employee_id")
+  baseSalary     Decimal       @map("base_salary") @db.Decimal(10, 2)
+  bonuses        Decimal       @default(0) @db.Decimal(10, 2)
+  deductions     Decimal       @default(0) @db.Decimal(10, 2)
+  totalSalary    Decimal?      @map("total_salary") @db.Decimal(10, 2)
+  payPeriodStart DateTime      @map("pay_period_start") @db.Date
+  payPeriodEnd   DateTime      @map("pay_period_end") @db.Date
+  status         PayrollStatus @default(PENDING)
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@map("payrolls")
+}
+
+model AuditLog {
+  id        BigInt   @id @default(autoincrement())
+  actorId   Int?     @map("actor_id")
+  action    String   @db.VarChar(20)
+  tableName String   @map("table_name") @db.VarChar(50)
+  recordId  Int      @map("record_id")
+  oldValue  Json?    @map("old_value")
+  newValue  Json?    @map("new_value")
+  ipAddress String?  @map("ip_address") @db.VarChar(45)
+  timestamp DateTime @default(now())
+
+  @@map("audit_logs")
+}
