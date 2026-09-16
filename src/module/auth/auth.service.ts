@@ -16,35 +16,34 @@ export class AuthService {
     private readonly jwt: JwtService,
   ) {}
 
-  register(dto: RegisterDto) {
+  async register(dto: RegisterDto) {
     throw new Error('Method not implemented.');
   }
 
-  async login(dto: LoginDto): Promise<{ access_token: string }> {
-    const { email, password } = dto;
+  async login(user: any): Promise<{ access_token: string }> {
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    };
+    return {
+      access_token: await this.jwt.signAsync(payload),
+    };
+  }
 
-    const employee = await this.prisma.employee.findFirst({
+  async validateUser(email: string, password: string): Promise<any> {
+    const user = await this.prisma.employee.findFirst({
       where: {
         email: email,
       },
     });
 
-    if (!employee) {
-      throw new UnauthorizedException('This user does not exist!');
+    if (!user) return null;
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (isMatch) {
+      const { password, ...result } = user;
+      return result;
     }
-
-    const isMatch = await bcrypt.compare(password, employee.password);
-
-    if (!isMatch) {
-      throw new UnauthorizedException('This user does not exist!');
-    }
-
-    const payload = {
-      sub: employee.id,
-      email: employee.email,
-      role: employee.role,
-    };
-
-    return { access_token: await this.jwt.signAsync(payload) };
+    return null;
   }
 }
