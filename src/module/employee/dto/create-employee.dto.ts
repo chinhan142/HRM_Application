@@ -1,4 +1,9 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  ApiProperty,
+  ApiPropertyOptional,
+  OmitType,
+  PartialType,
+} from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import {
   IsEmail,
@@ -64,3 +69,7 @@ export class CreateEmployeeDto {
   @IsOptional()
   managerId?: number;
 }
+
+export class UpdateEmployeeDto extends PartialType(
+  OmitType(CreateEmployeeDto, ['password'] as const),
+) {}

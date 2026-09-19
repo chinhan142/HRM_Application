@@ -1,9 +1,16 @@
-import { ConflictException, Injectable } from '@nestjs/common';
-import { CreateEmployeeDto } from './dto/create-employee.dto.js';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  CreateEmployeeDto,
+  UpdateEmployeeDto,
+} from './dto/create-employee.dto.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import bcrypt from 'bcrypt';
 import { FilterEmployeeQuery } from './query/filter-employee.query.js';
-import { Prisma } from '@prisma/client';
+import { EmployeeStatus, Prisma } from '@prisma/client';
 
 @Injectable()
 export class EmployeeService {
@@ -98,5 +105,60 @@ export class EmployeeService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async deleteEmployee(id: number) {
+    const employee = await this.prisma.employee.findUnique({
+      where: {
+        id,
+      },
+    });
+
+    if (!employee) {
+      throw new NotFoundException('This employee does not exist!');
+    }
+
+    const deleteEmployee = await this.prisma.employee.update({
+      where: {
+        id,
+      },
+      data: {
+        status: EmployeeStatus.TERMINATED,
+      },
+    });
+
+    const { password, ...result } = deleteEmployee;
+    return result;
+  }
+
+  async updateEmployee(id: number, dto: UpdateEmployeeDto) {
+    const employee = await this.prisma.employee.findUnique({
+      where: {
+        id,
+      },
+    });
+
+    if (!employee) {
+      throw new NotFoundException('This employee does not exist!');
+    }
+
+    const updateEmployee = await this.prisma.employee.update({
+      where: {
+        id,
+      },
+      data: {
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        email: dto.email,
+        role: dto.role,
+        departmentId: dto.departmentId,
+        jobTitleId: dto.jobTitleId,
+        managerId: dto.managerId,
+      },
+    });
+
+    const { password, ...result } = updateEmployee;
+
+    return result;
   }
 }
