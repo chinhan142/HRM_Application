@@ -2,6 +2,8 @@ import { ConflictException, Injectable } from '@nestjs/common';
 import { CreateEmployeeDto } from './dto/create-employee.dto.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import bcrypt from 'bcrypt';
+import { FilterEmployeeQuery } from './query/filter-employee.query.js';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class EmployeeService {
@@ -36,5 +38,65 @@ export class EmployeeService {
 
     const { password, ...result } = newEmployee;
     return result;
+  }
+
+  async getEmployeeList(query: FilterEmployeeQuery) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 4;
+    const skip = (page - 1) * limit;
+
+    // Using where input in prisma to filter nested conditions
+    const where: Prisma.EmployeeWhereInput = {};
+    if (query.departmentId) {
+      where.departmentId = query.departmentId;
+    }
+
+    if (query.search) {
+      const keyword = query.search.trim();
+
+      where.OR = [
+        { firstName: { contains: keyword, mode: 'insensitive' } },
+        { lastName: { contains: keyword, mode: 'insensitive' } },
+        { email: { contains: keyword, mode: 'insensitive' } },
+        { department: { name: { contains: keyword, mode: 'insensitive' } } },
+      ];
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.employee.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          department: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          jobTitle: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+
+      this.prisma.employee.count({ where }),
+    ]);
+
+    const sanitizedData = data.map(({ password: _, ...emp }) => emp);
+
+    return {
+      data: sanitizedData,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 }
