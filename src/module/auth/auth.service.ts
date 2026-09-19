@@ -8,6 +8,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { LoginDto } from './dto/login.dto.js';
 import bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -44,7 +45,9 @@ export class AuthService {
     return result;
   }
 
-  async login(user: any): Promise<{ access_token: string }> {
+  async login(
+    user: any,
+  ): Promise<{ access_token: string; refresh_token: string }> {
     const payload = {
       sub: user.id,
       email: user.email,
@@ -52,6 +55,7 @@ export class AuthService {
     };
     return {
       access_token: await this.jwt.signAsync(payload),
+      refresh_token: randomUUID(),
     };
   }
 

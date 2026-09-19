@@ -6,11 +6,14 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { LocalStrategy } from './strategies/local.strategy.js';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
+import { LocalAuthGuard } from './guards/local-auth.guard.js';
 
 @Module({
   imports: [
     UserModule,
-    PassportModule,
+    PassportModule.register({
+      defaultStrategy: 'local',
+    }),
     JwtModule.register({
       global: true,
       secret: process.env.JWT_SECRET,
@@ -18,7 +21,7 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, LocalStrategy, JwtStrategy],
+  providers: [LocalAuthGuard, AuthService, LocalStrategy, JwtStrategy],
   exports: [AuthService],
 })
 export class AuthModule {}
